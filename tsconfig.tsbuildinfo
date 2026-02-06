@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/utiles/prisma.ts"],"version":"5.9.3"}
+{"root":["./src/index.ts","./src/controller/auth/auth-controller.ts","./src/middleware/middleware.ts","./src/routes/index.ts","./src/routes/auth/auth-routes.ts","./src/types/auth.ts","./src/types/employee.ts","./src/utiles/prisma.ts"],"version":"5.9.3"}
