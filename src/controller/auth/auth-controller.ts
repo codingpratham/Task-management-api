@@ -1,107 +1,170 @@
 import { Request, Response } from "express";
-import { loginSchema, loginType, registerSchema ,registerType} from "../../types/auth";
+import {
+  loginSchema,
+  loginType,
+  onboardingSchema,
+  onboardingType,
+  registerSchema,
+  registerType,
+} from "../../types/auth";
 import prisma from "../../utiles/prisma";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import clodinary from "../../utiles/cloudinary";
+import is from "zod/v4/locales/is.js";
 
+export const register = async (req: Request, res: Response) => {
+  const { success, error, data } = registerSchema.safeParse(req.body);
 
-export const register = async(req:Request, res:Response)=>{
-    const {success,error,data}= registerSchema.safeParse(req.body);
+  if (!success) {
+    return res.status(400).json({ error: error });
+  }
 
-    if(!success){
-        return res.status(400).json({error:error})
+  const schema: registerType = data;
+
+  try {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: schema.email,
+      },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
     }
 
-    const schema:registerType = data;
+    const hashesdPassword = await bcrypt.hash(schema.password, 10);
 
-    try {
-       const existingUser = await prisma.user.findFirst({
-        where:{
-            email:schema.email
-        }
-       })
+    const user = await prisma.user.create({
+      data: {
+        email: schema.email,
+        password: hashesdPassword,
+        role: schema.role,
+      },
+    });
 
-       if(existingUser){
-        return res.status(400).json({error:"User already exists"})
-       }
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string);
 
-       const hashesdPassword = await bcrypt.hash(schema.password,10)
+    res.cookie("token", token, {
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      sameSite: "none",
+      secure: true,
+    });
 
-       const user = await prisma.user.create({
-        data:{
-            email:schema.email,
-            password:hashesdPassword,
-            role:schema.role
-        }
-       })
+    res.status(200).json({
+      message: "User created successfully",
+      user: user,
+      token: token,
+    });
+  } catch (error: Error | any) {
+    return res.status(500).json({ error: error.message });
+    console.log(error);
+  }
+};
 
-       const token = jwt.sign({id:user.id},process.env.JWT_SECRET as string)
+export const login = async (req: Request, res: Response) => {
+  const { success, error, data } = loginSchema.safeParse(req.body);
+  if (!success) {
+    return res.status(400).json({ error: error });
+  }
 
-       res.cookie("token",token,{
-        httpOnly:true,
-        maxAge:1000*60*60*24*30,
-        sameSite:"none",
-        secure:true
-       })
+  const schema: loginType = data;
 
-       res.status(200).json({
-        message:"User created successfully",
-        user:user,
-        token:token
-       })
-    } catch (error : Error | any) {
-        return res.status(500).json({error:error.message})
-        console.log(error);
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        email: schema.email,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
     }
-}
 
-export const login = async(req:Request , res:Response)=>{
-    const {success,error,data}= loginSchema.safeParse(req.body);
-    if(!success){
-        return res.status(400).json({error:error})
+    const isPasswordValid = await bcrypt.compare(
+      schema.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: "Invalid password" });
     }
 
-    const schema : loginType = data;
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string);
+    res.cookie("token", token, {
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      sameSite: "none",
+      secure: true,
+    });
 
-    try {
-        const user = await prisma.user.findFirst({
-            where:{
-                email:schema.email
-            }
-        })
+    res.status(200).json({
+      message: "Login successful",
+      user: user,
+      token: token,
+    });
+  } catch (error: Error | any) {
+    res.status(500).json({ error: error.message });
+    console.log(error);
+  }
+};
 
-        if(!user){
-            return res.status(400).json({error:"User not found"})
-        }
+export const logout = async (req: Request, res: Response) => {
+  res.clearCookie("token");
+  res.status(200).json({ message: "Logout successful" });
+};
 
-        const isPasswordValid = await bcrypt.compare(schema.password , user.password)
+export const onBoarding = async (req: Request, res: Response) => {
+  const id = req.id;
 
-        if(!isPasswordValid){
-            return res.status(400).json({error:"Invalid password"})
-        }
+  if (!id) {
+    return res.status(400).json({ error: "User not found" });
+  }
 
-        const token = jwt.sign({id:user.id},process.env.JWT_SECRET as string)
-        res.cookie("token",token,{
-            httpOnly:true,
-            maxAge:1000*60*60*24*30,
-            sameSite:"none",
-            secure:true
-        })
+  if (!req.file) {
+    return res.status(400).json({ error: "Image not found" });
+  }
 
-        res.status(200).json({
-            message:"Login successful",
-            user:user,
-            token:token
-        })
- 
-    } catch (error : Error | any) {
-        res.status(500).json({error:error.message})
-        console.log(error);
-    }
-}
+  const uploadResult = await new Promise<any>((resolve, reject) => {
+    clodinary.uploader
+      .upload_stream({ folder: "photos" }, (error: any, result: any) => {
+        if (error) reject(error);
+        else resolve(result);
+      })
+      .end(req.file!.buffer);
+  });
 
-export const logout = async(req:Request, res:Response)=>{
-    res.clearCookie("token");
-    res.status(200).json({message:"Logout successful"})
+  const photoUrl = uploadResult.secure_url;
 
-}
+  const { success, error, data } = onboardingSchema.safeParse({
+    image: photoUrl,
+    ...req.body,
+  });
+
+  if (!success) {
+    return res.status(400).json({ error: error });
+  }
+
+  const schema: onboardingType = data;
+
+  try {
+    const user = await prisma.onboard.create({
+      data: {
+        name: schema.name,
+        phone: schema.phone,
+        address: schema.address,
+        image: schema.image,
+        isVerified: true,
+        userId: id,
+      },
+    });
+    res.status(200).json({
+      message: "Onboarding successful",
+      user: user,
+    });
+  } catch (error: Error | any) {
+    res.status(500).json({ error: error.message });
+    console.log(error);
+  }
+};

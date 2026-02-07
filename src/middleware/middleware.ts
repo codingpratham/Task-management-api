@@ -31,38 +31,40 @@ export const authmiddleware = (req : Request , res:Response ,next:NextFunction)=
     }
 }
 
-export const onBoardCheck = async(req:Request , res:Response ,next:NextFunction)=>{
-    const id = req.id;
+export const onBoardCheck = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const id = req.id;
 
-    if(!id){
-        res.status(401).json({message:"Unauthorized"})
-        console.log("Error from onBoardCheck");
+  if (!id) {
+    console.log("Error from onBoardCheck: No user id");
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const user = await prisma.user.findFirst({
+      where:{
+        id:id
+      },
+      include:{
+        onboard:true
+      }
+    });
+
+    if (user?.onboard?.isVerified) {
+      console.log("Error from onBoardCheck: User already verified");
+      return res.status(401).json({ message: "user verified" });
+      next()
     }
 
-    try {
+    return next();
 
-        const user = await prisma.onboard.findFirst({
-            where:{
-                userId:id
-            }
-        })
+  } catch (error) {
+    console.log("Error from onBoardCheck", error);
+    return res.status(500).json({ message: "onBoardCheck Error" });
+  }
+};
 
-        if(!user){
-            res.status(401).json({message:"Unauthorized"})
-            console.log("Error from onBoardCheck");
-        }
-
-        if(!user?.isVerified){
-            res.status(401).json({message:"Onboard not verified"})
-            console.log("Error from onBoardCheck");
-        }
-
-        next();
-        
-        
-    } catch (error : Error | any ) {
-        res.status(401).json({message:"onBoardCheck Error"})
-        console.log(error);
-    }
-}
 
