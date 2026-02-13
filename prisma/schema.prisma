@@ -14,7 +14,7 @@ datasource db {
 }
 
 model User{
-  id String @id @default(cuid()) @map("_id")
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   email String @unique 
   password String
@@ -26,13 +26,12 @@ model User{
   tasks Task[]
   projects Project[]
   notifications Notifications[]
-  teams Teams[]
-
-
+  teamIds String[] @db.ObjectId
+  teams Team[] @relation(fields: [teamIds], references: [id])
 }
 
 model Onboard{
-  id String @id @default(cuid()) @map("_id")
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   name String
   phone String
@@ -40,7 +39,7 @@ model Onboard{
   image String
   isVerified Boolean @default(false)
 
-  userId String @unique
+  userId String @unique @db.ObjectId
   user User @relation(fields: [userId], references: [id], onDelete:Cascade)
   
 
@@ -49,23 +48,21 @@ model Onboard{
 
 }
 
-model Teams{
-  id String @id @default(cuid()) @map("_id")
+model Team{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   name String
   description String
 
-  userId String @unique
-  user User @relation(fields: [userId], references: [id], onDelete:Cascade)
-
-  email String[]
+  userIds String[] @db.ObjectId
+  users User[] @relation(fields: [userIds], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Project{
-  id String @id @default(cuid()) @map("_id")
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   name String
   description String
@@ -73,7 +70,7 @@ model Project{
   status Status @default(pending)
   priority Priority @default(low)
 
-  userId String @unique
+  userId String @db.ObjectId
   user User @relation(fields: [userId], references: [id], onDelete:Cascade)
 
   tasks Task[]
@@ -84,7 +81,7 @@ model Project{
 }
 
 model Task{
-  id String @id @default(cuid()) @map("_id")
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   title String
   description String
@@ -92,10 +89,10 @@ model Task{
   priority Priority @default(low)
   deadline DateTime
   
-  userId String @unique
+  userId String @db.ObjectId
   user User @relation(fields: [userId], references: [id], onDelete:Cascade)
 
-  projectId String @unique
+  projectId String @db.ObjectId
   project Project @relation(fields: [projectId], references: [id], onDelete:Cascade)
 
   createdAt DateTime @default(now())
@@ -103,10 +100,10 @@ model Task{
 }
 
 model Notifications{
-  id String @id @default(cuid()) @map("_id")
+  id String @id @default(auto()) @map("_id") @db.ObjectId
 
   message String
-  userId String @unique
+  userId String @db.ObjectId
   user User @relation(fields: [userId], references: [id], onDelete:Cascade)
 
   createdAt DateTime @default(now())

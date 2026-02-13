@@ -39,32 +39,50 @@ export const onBoardCheck = async (
   const id = req.id;
 
   if (!id) {
-    console.log("Error from onBoardCheck: No user id");
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
     const user = await prisma.user.findFirst({
-      where:{
-        id:id
-      },
-      include:{
-        onboard:true
-      }
+      where: { id },
+      include: { onboard: true }
     });
 
-    if (user?.onboard?.isVerified) {
-      console.log("Error from onBoardCheck: User already verified");
-      return res.status(401).json({ message: "user verified" });
-      next()
+    if (!user?.onboard?.isVerified) {
+      return res.status(403).json({ message: "User not onboarded or verified" });
     }
 
-    return next();
-
+    next();
   } catch (error) {
-    console.log("Error from onBoardCheck", error);
     return res.status(500).json({ message: "onBoardCheck Error" });
   }
+};
+
+export const superAdminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  const id = req.id;
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (user?.role !== "super_admin") {
+    return res.status(403).json({ message: "Super Admin access required" });
+  }
+  next();
+};
+
+export const adminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  const id = req.id;
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (user?.role !== "admin" && user?.role !== "super_admin") {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+};
+
+export const employeeMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  const id = req.id;
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (user?.role !== "employee" && user?.role !== "admin" && user?.role !== "super_admin") {
+    return res.status(403).json({ message: "Employee access required" });
+  }
+  next();
 };
 
 

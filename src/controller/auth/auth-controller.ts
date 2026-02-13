@@ -11,7 +11,6 @@ import prisma from "../../utiles/prisma";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import clodinary from "../../utiles/cloudinary";
-import is from "zod/v4/locales/is.js";
 
 export const register = async (req: Request, res: Response) => {
   const { success, error, data } = registerSchema.safeParse(req.body);

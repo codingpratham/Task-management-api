@@ -2,9 +2,11 @@ import "dotenv/config"
 import express, {Request, Response} from 'express';
 import indexRouter from './routes/index';
 import cookieParser from 'cookie-parser';
+import swaggerRouter from './utiles/swagger';
 
 const app =express();
 
+app.use("/api-docs", swaggerRouter);
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
